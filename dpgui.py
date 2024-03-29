@@ -59,7 +59,20 @@ add_menu_item("Show Logger", callback=show_logger)
 add_menu_item("Show Metrics", callback=show_metrics)
 add_menu_item("Show Documentation", callback=show_documentation)
 add_menu_item("Show Debug", callback=show_debug)
+end()
 
 end()
 #
-end()
+add_text("Squid Firewall Manager")
+
+add_input_text('ip')
+add_input_int('port', default_value=3128)
+
+add_spacing(count=5)
+
+add_combo("stat", ["Add", "Remove", "Show"])
+add_combo("oper", ["Domain", "Port", "App"])
+add_input_text("input_1")
+add_button('Execute!', callback=cb_execute)
+
+start_dearpygui()
