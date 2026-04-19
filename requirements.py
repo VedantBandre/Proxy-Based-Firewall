@@ -1,0 +1,3 @@
+dearpygui
+requests
+bottle

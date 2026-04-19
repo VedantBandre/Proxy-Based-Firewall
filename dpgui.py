@@ -1,78 +1,102 @@
-from dearpygui.dearpygui import *
+import dearpygui.dearpygui as dpg
 from requests import get
 
 def oprint(text):
-	if does_item_exist('output_child'):
-		delete_item('output_child')
-	add_child('output_child')
-	add_text(text)
-	end()
-
-def cb_execute(sender, data):
-	print("cb_execute!")
-	stat = get_value("stat")
-	oper = get_value("oper")
-	val = get_value("input_1")
-	set_out(val)
-	if not (stat and oper and val):
-		oprint("Missing data")
-		return
+	if dpg.does_item_exist('output_child'):
+		dpg.delete_item('output_child')
+	dpg.add_child_window(tag='output_child', parent='main_window', height=100)
+	dpg.add_text(text, parent='output_child')
 
 def send(path):
-	ip = get_value('ip')
-	port = get_value('port')
-	ip = f'http://{ip}:{str(port)}'
-	r = get(ip + path)
-	if r.status_code == 200:
-		return r.text
+	ip = dpg.get_value('ip')
+	port = dpg.get_value('port')
+	url = f'http://{ip}:{port}{path}'
+	try:
+		r = get(url)
+		if r.status_code == 200:
+			return r.text
+	except Exception as e:
+		return False
 	return False
 
-def cb_service(sender, data):
-	print(sender, data)
-	r = send(f'/service/{sender.lower()}')
+def cb_service(sender, data, user_data):
+	print(f"Service: {user_data}")
+	r = send(f'/service/{user_data.lower()}')
 	if r:
-		oprint("Success")
+		oprint(f"Success: {r}")
 	else:
 		oprint("Failed")
 
 def cb_execute(sender, data):
-	oper = get_value('oper').lower()
-	stat = get_value('stat').lower()
-	val = get_value('input_1')
+	oper = dpg.get_value('oper')
+	stat = dpg.get_value('stat')
+	val = dpg.get_value('input_1')
+	
+	if not oper or not stat or not val:
+		oprint("Missing data")
+		return
+	
+	oper = oper.lower()
+	stat = stat.lower()
+	
 	r = send(f'/{oper}/{stat}/{val}')
 	if not r:
 		oprint("Failed")
 	else:
-		oprint("Success")
+		oprint(f"Success: {r}")
 
-##
-add_menu_bar("MenuBar")
+def show_logger():
+	dpg.show_tool(dpg.mvTool_Logger)
 
-add_menu("Service")
-add_menu_item("Start", callback=cb_service)
-add_menu_item("Restart", callback=cb_service)
-add_menu_item("Stop", callback=cb_service)
-end()
+def show_metrics():
+	dpg.show_tool(dpg.mvTool_Metrics)
 
-add_menu("Tools")
-add_menu_item("Show Logger", callback=show_logger)
-add_menu_item("Show Metrics", callback=show_metrics)
-add_menu_item("Show Documentation", callback=show_documentation)
-add_menu_item("Show Debug", callback=show_debug)
-end()
+def show_documentation():
+	dpg.show_tool(dpg.mvTool_Doc)
 
-end()
-#
-add_text("Squid Firewall Manager")
+def show_debug():
+	dpg.show_tool(dpg.mvTool_Debug)
 
-add_input_text('ip')
-add_input_int('port', default_value=3128)
+dpg.create_context()
+dpg.create_viewport(title='Squid Firewall Manager', width=600, height=500)
+dpg.setup_dearpygui()
 
-add_spacing(count=5)
+with dpg.viewport_menu_bar():
+	with dpg.menu(label="Service"):
+		dpg.add_menu_item(label="Start", callback=cb_service, user_data="Start")
+		dpg.add_menu_item(label="Restart", callback=cb_service, user_data="Restart")
+		dpg.add_menu_item(label="Stop", callback=cb_service, user_data="Stop")
+	
+	with dpg.menu(label="Tools"):
+		dpg.add_menu_item(label="Show Logger", callback=show_logger)
+		dpg.add_menu_item(label="Show Metrics", callback=show_metrics)
+		dpg.add_menu_item(label="Show Documentation", callback=show_documentation)
+		dpg.add_menu_item(label="Show Debug", callback=show_debug)
 
-add_combo("stat", ["Add", "Remove", "Show"])
-add_combo("oper", ["Domain", "Port", "App"])
-add_input_text("input_1")
-add_button('Execute!', callback=cb_execute)
+with dpg.window(tag='main_window', label='Squid Firewall Manager', width=600, height=500):
+	dpg.add_text("Squid Firewall Manager")
+	dpg.add_separator()
+	
+	dpg.add_input_text(tag='ip', label='IP Address', default_value='127.0.0.1')
+	dpg.add_input_int(tag='port', label='Port', default_value=7505)
+	
+	dpg.add_spacer(height=10)
+	dpg.add_separator()
+	dpg.add_spacer(height=10)
+	
+	dpg.add_combo(tag='stat', label='Action', items=["Add", "Remove", "Show"], default_value="Show")
+	dpg.add_combo(tag='oper', label='Type', items=["Domain", "Port", "Arp"], default_value="Domain")
+	dpg.add_input_text(tag='input_1', label='Value', default_value='')
+	dpg.add_button(label='Execute!', callback=cb_execute)
+	
+	dpg.add_spacer(height=10)
+	dpg.add_separator()
+	dpg.add_text("Output:")
 
-start_dearpygui()
+# Create output child window
+with dpg.child_window(tag='output_child', parent='main_window', height=100):
+	dpg.add_text("Ready...")
+
+dpg.show_viewport()
+dpg.start_dearpygui()
+dpg.destroy_context()
